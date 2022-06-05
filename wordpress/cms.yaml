@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-database
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: mysql-database
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-database
+spec:
+  selector:
+    matchLabels:
+      app: mysql-database
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mysql-database
+    spec:
+      containers:
+      - image: localhost:32000/mysql-db
+        name: mysql-database
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: admin
+        ports:
+        - containerPort: 3306
+          name: mysql-database
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mywordpress
+  labels:
+    app: mywordpress
+spec:
+  ports:
+    - port: 80
+  selector:
+    app: mywordpress
+    tier: frontend
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mywordpress
+  labels:
+    app: mywordpress
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: mywordpress
+      tier: frontend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mywordpress
+        tier: frontend
+    spec:
+      containers:
+      - image: localhost:32000/mywordpress
+        name: mywordpress
+        ports:
+        - containerPort: 80
+          name: mywordpress
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: mysql-database
+        - name: WORDPRESS_DB_PASSWORD
+          value: admin
+

@@ -1,0 +1,178 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: apache
+  name: apache
+spec:
+  externalIPs:
+  - 10.3.0.4
+  ports:
+  - port: 88
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: apache
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: myredis
+  name: myredis
+spec:
+  ports:
+  - port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: myredis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-database
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: mysql-database
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: mywordpress
+  name: mywordpress
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: mywordpress
+    tier: frontend
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: apache
+  name: apache
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: apache
+  template:
+    metadata:
+      labels:
+        app: apache
+    spec:
+      containers:
+      - image: localhost:32000/apache
+        name: apache
+        resources: {}
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: myredis
+  name: myredis
+spec:
+  selector:
+    matchLabels:
+      app: myredis
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: myredis
+    spec:
+      containers:
+      - image: localhost:32000/myredis
+        name: myredis
+        resources: {}
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-database
+spec:
+  selector:
+    matchLabels:
+      app: mysql-database
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mysql-database
+    spec:
+      containers:
+      - env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: admin
+        image: localhost:32000/mysql-db
+        name: mysql-database
+        ports:
+        - containerPort: 3306
+          name: mysql-database
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: mywordpress
+  name: mywordpress
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: mywordpress
+      tier: frontend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mywordpress
+        tier: frontend
+    spec:
+      containers:
+      - env:
+        - name: WORDPRESS_DB_HOST
+          value: mysql-database
+        - name: WORDPRESS_DB_PASSWORD
+          value: admin
+        image: localhost:32000/mywordpress
+        name: mywordpress
+        ports:
+        - containerPort: 80
+          name: mywordpress
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  creationTimestamp: null
+  name: myapp
+spec:
+  maxReplicas: 10
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: myapp
+  targetCPUUtilizationPercentage: 50
+status:
+  currentReplicas: 0
+  desiredReplicas: 0
